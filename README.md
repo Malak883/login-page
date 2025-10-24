@@ -1,12 +1,15 @@
-# flutter_application_1
+# Flutter Login Page
 
-A new Flutter project.
+This is a Flutter Login & Register App with Google Account Authentication using Firebase.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is a simple Flutter-based authentication system where users can:
+- Register with email and password
+- Sign in using Google account (via Firebase Authentication)
+- Navigate between login and registration screens
 
-A few resources to get you started if this is your first Flutter project:
+### Resources to get started with Flutter:
 
 - [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
 - [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
