@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,28 +13,7 @@ void main() async {
   runApp(const MyApp());
 }
 
-/// =====================
-/// Replace the YOUR_... values below with your real Firebase config.
-/// You can get these from the Firebase console or from flutterfire configure.
-/// =====================
-class DefaultFirebaseOptions {
-  static FirebaseOptions get currentPlatform {
-    return const FirebaseOptions(
-      // WEB / ANDROID / IOS values (replace with your project's values)
-      apiKey: 'YOUR_API_KEY',
-      appId: 'YOUR_APP_ID',
-      messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-      projectId: 'YOUR_PROJECT_ID',
-      authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-      storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-      measurementId: 'YOUR_MEASUREMENT_ID',
-    );
-  }
-}
 
-/// =====================
-/// MyApp
-/// =====================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
