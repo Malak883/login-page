@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'services/firebase_auth_service.dart';
+import 'services/verification_service.dart';
 
 
 void main() async {
@@ -11,6 +14,57 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(const MyApp());
+}
+
+class VerificationWaitingScreen extends StatelessWidget {
+  final String verificationId;
+  const VerificationWaitingScreen({super.key, required this.verificationId});
+
+  @override
+  Widget build(BuildContext context) {
+    final service = VerificationService();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify your login')),
+      body: Center(
+        child: StreamBuilder<String>(
+          stream: service.watchVerificationStatus(verificationId),
+          builder: (context, snapshot) {
+            final status = snapshot.data ?? 'pending';
+            if (status == 'approved') {
+              // Navigate to home
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                  (route) => false,
+                );
+              });
+            } else if (status == 'denied') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              });
+            }
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  status == 'pending'
+                      ? 'We sent a verification request to your email. Please confirm.'
+                      : 'Status: $status',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 
@@ -25,7 +79,82 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const LoginPage(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+/// Simple auth gate to route signed-in users to Home
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>
+        (
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (user == null) {
+          return const LoginPage();
+        }
+        return const HomePage();
+      },
+    );
+  }
+}
+
+class VerificationWaitingScreen extends StatelessWidget {
+  final String verificationId;
+  const VerificationWaitingScreen({super.key, required this.verificationId});
+
+  @override
+  Widget build(BuildContext context) {
+    final service = VerificationService();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify your login')),
+      body: Center(
+        child: StreamBuilder<String>(
+          stream: service.watchVerificationStatus(verificationId),
+          builder: (context, snapshot) {
+            final status = snapshot.data ?? 'pending';
+            if (status == 'approved') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                  (route) => false,
+                );
+              });
+            } else if (status == 'denied') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              });
+            }
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  status == 'pending'
+                      ? 'We sent a verification request to your email. Please confirm.'
+                      : 'Status: $status',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -43,76 +172,63 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
   bool _showPasswordField = false;
-  bool _checking = false;
+  bool _busy = false;
+  final _authService = FirebaseAuthService();
+  final _verificationService = VerificationService();
 
-  // Check if email exists in 'users' collection
   Future<void> _checkEmail() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       _showSnack('Please enter your email');
       return;
     }
-
-    setState(() => _checking = true);
+    setState(() => _busy = true);
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        setState(() {
-          _showPasswordField = true;
-        });
-      } else {
-        _showSnack('Email not found. Please register first.');
-      }
-    } catch (e) {
-      _showSnack('Error checking email: $e');
+      // Check if an account exists in Firebase Auth by trying sign-in with link? Not available.
+      // For UX, reveal password field directly.
+      setState(() => _showPasswordField = true);
     } finally {
-      setState(() => _checking = false);
+      setState(() => _busy = false);
     }
   }
 
-  // Verify password for the email
-  Future<void> _login() async {
+  Future<void> _loginWithEmail() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-
-    if (password.isEmpty) {
-      _showSnack('Please enter your password');
+    if (email.isEmpty || password.isEmpty) {
+      _showSnack('Enter email and password');
       return;
     }
-
-    setState(() => _checking = true);
+    setState(() => _busy = true);
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .where('password', isEqualTo: password)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        // Login success
-        _showSnack('Login successful!');
-        // Optional: navigate to Home page and pass user data
-        final userData = query.docs.first.data();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => HomePage(userData: userData),
-          ),
-        );
-      } else {
-        _showSnack('Incorrect password');
-      }
+      final cred = await _authService.signInWithEmail(email: email, password: password);
+      // Simple suspicious-device heuristic: if sign-in just added a new device, ask for verification
+      final verificationId = await _verificationService.requestLoginVerification();
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => VerificationWaitingScreen(verificationId: verificationId)),
+      );
     } catch (e) {
-      _showSnack('Login error: $e');
+      _showSnack('Login failed: $e');
     } finally {
-      setState(() => _checking = false);
+      setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _busy = true);
+    try {
+      await _authService.signInWithGoogle();
+      final verificationId = await _verificationService.requestLoginVerification();
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => VerificationWaitingScreen(verificationId: verificationId)),
+      );
+    } catch (e) {
+      _showSnack('Google sign-in failed: $e');
+    } finally {
+      setState(() => _busy = false);
     }
   }
 
@@ -181,10 +297,10 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _checking
+                  onPressed: _busy
                       ? null
-                      : (_showPasswordField ? _login : _checkEmail),
-                  child: _checking
+                      : (_showPasswordField ? _loginWithEmail : _checkEmail),
+                  child: _busy
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(_showPasswordField ? 'Login' : 'Next'),
                 ),
@@ -198,6 +314,17 @@ class _LoginPageState extends State<LoginPage> {
                   );
                 },
                 child: const Text('Create account'),
+              ),
+
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _loginWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata),
+                  label: const Text('Sign in with Google'),
+                ),
               ),
 
               const SizedBox(height: 18),
@@ -231,46 +358,24 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+  final _authService = FirebaseAuthService();
 
-  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
 
-  String _gender = 'Male';
   bool _saving = false;
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final email = _emailController.text.trim();
-
     setState(() => _saving = true);
     try {
-      // check if email already exists
-      final existing = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (existing.docs.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Email already exists')));
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('users').add({
-        'username': _usernameController.text.trim(),
-        'email': email,
-        // NOTE: storing plain password is NOT secure for production.
-        // For production use Firebase Auth and never store raw passwords.
-        'password': _passwordController.text,
-        'age': int.tryParse(_ageController.text) ?? 0,
-        'gender': _gender,
-        'created_at': FieldValue.serverTimestamp(),
-      });
-
+      await _authService.registerWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _displayNameController.text.trim(),
+      );
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Registered successfully')));
       Navigator.of(context).pop();
@@ -283,10 +388,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _displayNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _ageController.dispose();
     super.dispose();
   }
 
@@ -301,9 +405,8 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             children: [
               TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
+                controller: _displayNameController,
+                decoration: const InputDecoration(labelText: 'Full name (optional)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -320,22 +423,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _ageController,
-                decoration: const InputDecoration(labelText: 'Age', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-                validator: (v) => (v == null || v.isEmpty) ? 'Enter age' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _gender,
-                items: const [
-                  DropdownMenuItem(value: 'Male', child: Text('Male')),
-                  DropdownMenuItem(value: 'Female', child: Text('Female')),
-                ],
-                onChanged: (v) => setState(() => _gender = v ?? 'Male'),
-                decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Gender'),
-              ),
+              // Removed non-essential demo fields
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -357,13 +445,13 @@ class _RegisterPageState extends State<RegisterPage> {
 /// Simple Home Page to navigate after successful login
 /// =====================
 class HomePage extends StatelessWidget {
-  final Map<String, dynamic>? userData;
-  const HomePage({super.key, this.userData});
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final username = userData != null ? (userData!['username'] ?? 'User') : 'User';
-    final email = userData != null ? (userData!['email'] ?? '') : '';
+    final user = FirebaseAuth.instance.currentUser;
+    final username = user?.displayName ?? 'User';
+    final email = user?.email ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Home')),
@@ -377,11 +465,7 @@ class HomePage extends StatelessWidget {
            const SizedBox(height: 24),
            ElevatedButton(
              onPressed: () {
-               // logout: go back to login
-               Navigator.of(context).pushAndRemoveUntil(
-                 MaterialPageRoute(builder: (_) => const LoginPage()),
-                 (route) => false,
-               );
+              FirebaseAuth.instance.signOut();
              },
              child: const Text('Logout'),
            )
