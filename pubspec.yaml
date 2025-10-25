@@ -14,7 +14,24 @@ dependencies:
   # Firebase dependencies
   firebase_core: ^4.2.0
   firebase_auth: ^6.1.1
-  cloud_firestore: 6.0.3
+  cloud_firestore: ^6.0.3
+  cloud_functions: ^6.0.3
+
+  # Authentication
+  google_sign_in: ^6.2.1
+
+  # Device information
+  device_info_plus: ^10.1.0
+
+  # Network requests
+  http: ^1.2.2
+
+  # Email sending
+  mailer: ^6.2.0
+
+  # Utilities
+  uuid: ^4.5.1
+  shared_preferences: ^2.3.3
 
   # UI & Fonts
   google_fonts: ^6.1.0

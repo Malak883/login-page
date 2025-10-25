@@ -18,21 +18,74 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="SecureAuth - Professional authentication platform">
 
   <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="flutter_application_1">
+  <meta name="apple-mobile-web-app-title" content="SecureAuth">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>flutter_application_1</title>
+  <title>SecureAuth</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: white;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Loading screen -->
+  <div class="loading">
+    <div>
+      <div class="loading-spinner"></div>
+      <p style="margin-top: 20px; font-size: 18px;">Loading SecureAuth...</p>
+    </div>
+  </div>
+
+  <!-- Flutter app will replace this -->
+  <script>
+    // Google Sign-In configuration
+    window.googleSignInConfig = {
+      clientId: '139315326805-dcd3fb9d5cbf63be41c9dc.apps.googleusercontent.com', // Your Firebase Web App client ID
+      scope: 'email profile',
+      ux_mode: 'popup',
+      redirect_uri: window.location.origin
+    };
+  </script>
+  
+  <script src="flutter.js" defer></script>
 </body>
 </html>
